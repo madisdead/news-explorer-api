@@ -3,10 +3,10 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/user');
 require('dotenv').config();
 
-const { JWT_SECRET = 'some-key' } = process.env;
+const { NODE_ENV, JWT_SECRET } = process.env;
 
 const AuthError = require('../errors/auth-err.js');
-const RequestError = require('../errors/request-err.js');
+const ConflictError = require('../errors/conflict-err.js');
 
 module.exports.getUser = (req, res, next) => {
   User.findById(req.user)
@@ -30,9 +30,6 @@ module.exports.register = (req, res, next) => {
       name,
     })
       .then((user) => {
-        if (!user) {
-          throw new RequestError('Некорректные данные');
-        }
         res.status(201).send({
           name: user.name,
           email: user.email,
@@ -40,8 +37,7 @@ module.exports.register = (req, res, next) => {
       })
       .catch((err) => {
         if (err.name === 'MongoError' && err.code === 11000) {
-          const error = new Error('Пользователь с данным email уже существует');
-          error.statusCode = 409;
+          const error = new ConflictError('Пользователь с данным email уже существует');
 
           next(error);
         }
@@ -64,7 +60,7 @@ module.exports.login = (req, res, next) => {
             throw new AuthError('Неправильные почта или пароль');
           }
           return res.send({
-            token: jwt.sign({ _id: user._id }, JWT_SECRET, { expiresIn: '7d' }),
+            token: jwt.sign({ _id: user._id }, NODE_ENV === 'production' ? JWT_SECRET : 'dev-secret', { expiresIn: '7d' }),
           });
         })
         .catch(next);

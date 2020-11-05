@@ -1,12 +1,11 @@
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
+const AuthError = require('../errors/auth-err.js');
 
-const { JWT_SECRET = 'some-key' } = process.env;
+const { NODE_ENV, JWT_SECRET } = process.env;
 
-const handleAuthError = (res) => {
-  res
-    .status(401)
-    .send({ message: 'Необходима авторизация' });
+const handleAuthError = () => {
+  throw new AuthError('Необходима авторизация');
 };
 
 const extractBearerToken = (header) => header.replace('Bearer ', '');
@@ -22,10 +21,9 @@ module.exports = (req, res, next) => {
   let payload;
 
   try {
-    payload = jwt.verify(token, JWT_SECRET);
+    payload = jwt.verify(token, NODE_ENV === 'production' ? JWT_SECRET : 'dev-secret');
   } catch (err) {
-    const error = new Error('Необходима авторизация');
-    error.statusCode = 401;
+    const error = new AuthError('Необходима авторизация');
 
     next(error);
   }
